@@ -7,8 +7,8 @@ workflows:
     environment:
       groups:
         - google_play_credentials # If you have these set in Codemagic UI
-      node: latest
-      ruby: latest
+      node: 20.11.0
+      ruby: 3.2.2
       xcode: latest
     triggering:
       events:
