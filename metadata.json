@@ -1,5 +1,6 @@
 {
-  "name": "VaultKey - Secure Offline Vault",
-  "description": "A high-security, 100% offline password manager with AES-256 encryption, dark cyber aesthetics, and local-only storage.",
+  "name": "VaultKey",
+  "description": "Secure Offline Password Vault",
+  "iconPath": "public/icon.png",
   "requestFramePermissions": []
 }

@@ -1,6 +1,6 @@
 {
   "appId": "io.vaultkey.app",
-  "appName": "VAULTKEY",
+  "appName": "VaultKey",
   "webDir": "dist",
   "bundledWebRuntime": false,
   "server": {

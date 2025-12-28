@@ -19,11 +19,20 @@ workflows:
 
       - name: Sync Capacitor
         script: |
+          # If the android directory exists but gradlew is missing, 
+          # we might need to re-add the platform or sync specifically.
+          if [ ! -d "android" ]; then
+            npx cap add android
+          fi
           npx cap sync android
 
       - name: Build Android DEBUG APK
         script: |
           cd android
+          # Ensure gradlew exists; if not, generate it using gradle
+          if [ ! -f "gradlew" ]; then
+            gradle wrapper
+          fi
           chmod +x gradlew
           ./gradlew assembleDebug
 
