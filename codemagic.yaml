@@ -6,10 +6,16 @@ workflows:
     max_build_duration: 60
     environment:
       groups:
-        - google_play_credentials # If you have these set in Codemagic UI
+        - google_play_credentials
       node: 22.12.0
       ruby: 3.2.2
       xcode: latest
+      vars:
+        # Note: Set these in the Codemagic UI as secure variables
+        CM_KEYSTORE: "" # Base64 encoded keystore file
+        CM_KEYSTORE_PASSWORD: ""
+        CM_KEY_ALIAS: ""
+        CM_KEY_PASSWORD: ""
     triggering:
       events:
         - push
@@ -28,27 +34,40 @@ workflows:
           npm run build
       - name: Initialize and Sync Capacitor
         script: |
-          # If the android folder exists but is missing the gradle wrapper, it's a broken/partial state.
-          # We check for gradlew to ensure the native project is actually buildable.
           if [ ! -f "android/gradlew" ]; then
             echo "Android directory is missing gradlew. Re-adding platform..."
-            # Remove partial android folder if it exists to allow a clean 'add'
             rm -rf android
             npx cap add android
           fi
           npx cap sync
-      - name: Build Android
+      - name: Prepare Signing Keystore
+        script: |
+          if [ ! -z "$CM_KEYSTORE" ]; then
+            echo "Decoding signing keystore..."
+            echo $CM_KEYSTORE | base64 --decode > /tmp/vaultkey.keystore
+          else
+            echo "Warning: CM_KEYSTORE not found. Falling back to unsigned build."
+          fi
+      - name: Build Signed Android APK
         script: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleRelease
+          if [ -f "/tmp/vaultkey.keystore" ]; then
+            ./gradlew assembleRelease \
+              -Pandroid.injected.signing.store.file=/tmp/vaultkey.keystore \
+              -Pandroid.injected.signing.store.password=$CM_KEYSTORE_PASSWORD \
+              -Pandroid.injected.signing.key.alias=$CM_KEY_ALIAS \
+              -Pandroid.injected.signing.key.password=$CM_KEY_PASSWORD
+          else
+            ./gradlew assembleRelease
+          fi
     artifacts:
       - android/app/build/outputs/apk/release/*.apk
       - android/app/build/outputs/bundle/release/*.aab
     publishing:
       email:
         recipients:
-          - user@example.com # Replace with your email
+          - mypcaccc01@gmail.com
         notify:
           success: true
           failure: true
