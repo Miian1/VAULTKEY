@@ -28,15 +28,18 @@ workflows:
           npm run build
       - name: Initialize and Sync Capacitor
         script: |
-          # Check if android platform is already added, if not add it
-          if [ ! -d "android" ]; then
+          # If the android folder exists but is missing the gradle wrapper, it's a broken/partial state.
+          # We check for gradlew to ensure the native project is actually buildable.
+          if [ ! -f "android/gradlew" ]; then
+            echo "Android directory is missing gradlew. Re-adding platform..."
+            # Remove partial android folder if it exists to allow a clean 'add'
+            rm -rf android
             npx cap add android
           fi
           npx cap sync
       - name: Build Android
         script: |
           cd android
-          # Ensure gradlew is executable
           chmod +x gradlew
           ./gradlew assembleRelease
     artifacts:
@@ -45,7 +48,7 @@ workflows:
     publishing:
       email:
         recipients:
-          - mypcaccc01@gmail.com # Replace with your email
+          - user@example.com # Replace with your email
         notify:
           success: true
           failure: true
