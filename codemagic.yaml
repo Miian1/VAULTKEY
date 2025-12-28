@@ -26,19 +26,26 @@ workflows:
       - name: Build web application
         script: |
           npm run build
-      - name: Capacitor Sync
+      - name: Initialize and Sync Capacitor
         script: |
+          # Check if android platform is already added, if not add it
+          if [ ! -d "android" ]; then
+            npx cap add android
+          fi
           npx cap sync
       - name: Build Android
         script: |
-          cd android && ./gradlew assembleRelease
+          cd android
+          # Ensure gradlew is executable
+          chmod +x gradlew
+          ./gradlew assembleRelease
     artifacts:
       - android/app/build/outputs/apk/release/*.apk
       - android/app/build/outputs/bundle/release/*.aab
     publishing:
       email:
         recipients:
-          - user@example.com # Replace with your email
+          - mypcaccc01@gmail.com # Replace with your email
         notify:
           success: true
           failure: true
