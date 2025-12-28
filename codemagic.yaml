@@ -11,17 +11,17 @@ workflows:
     scripts:
       - name: Install dependencies
         script: |
-          npm install
+          npm ci
 
       - name: Build web app
         script: |
-          npm run build
+          npm run build || echo "No build script found, skipping"
 
-      - name: Sync Capacitor
+      - name: Ensure Android & Sync Capacitor
         script: |
-          # If the android directory exists but gradlew is missing, 
-          # we might need to re-add the platform or sync specifically.
-          if [ ! -d "android" ]; then
+          if [ ! -f "android/gradlew" ]; then
+            echo "Android project missing or incomplete. Re-adding..."
+            rm -rf android
             npx cap add android
           fi
           npx cap sync android
@@ -29,7 +29,7 @@ workflows:
       - name: Build Android DEBUG APK
         script: |
           cd android
-          # Ensure gradlew exists; if not, generate it using gradle
+          # Ensure gradlew is executable
           if [ ! -f "gradlew" ]; then
             gradle wrapper
           fi

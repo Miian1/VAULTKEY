@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { AppView, VaultEntry, VaultSettings, EncryptedData } from './types';
 import { CryptoService } from './services/cryptoService';
@@ -72,7 +71,6 @@ export default function App() {
   const [lastActivity, setLastActivity] = useState(Date.now());
   const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' | 'info' } | null>(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [needsFirstRunInternet, setNeedsFirstRunInternet] = useState(false);
 
   // --- Helpers ---
 
@@ -102,30 +100,17 @@ export default function App() {
   // --- Effects ---
 
   useEffect(() => {
-    const handleOnline = () => {
-      setIsOnline(true);
-      if (needsFirstRunInternet) {
-        localStorage.setItem('vaultkey_styles_ready', 'true');
-        setNeedsFirstRunInternet(false);
-      }
-    };
+    const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    const isStylesCached = localStorage.getItem('vaultkey_styles_ready') === 'true';
-    if (!navigator.onLine && !isStylesCached) {
-      setNeedsFirstRunInternet(true);
-    } else if (navigator.onLine) {
-      localStorage.setItem('vaultkey_styles_ready', 'true');
-    }
-
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [needsFirstRunInternet]);
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -268,21 +253,6 @@ export default function App() {
   };
 
   // --- Render Sections ---
-
-  if (needsFirstRunInternet) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center">
-        <div className="w-24 h-24 mb-8 glass-panel rounded-full flex items-center justify-center text-amber-500 border border-amber-500/30 animate-pulse">
-           <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3m8.293 8.293l1.414 1.414"></path></svg>
-        </div>
-        <h2 className="text-3xl font-black mb-4 cyber-glow tracking-tighter">INITIALIZATION REQUIRED</h2>
-        <p className="text-slate-400 max-w-sm mb-8 leading-relaxed font-medium">
-          To prepare your secure environment, VAULTKEY requires a brief connection to cache styling and security assets.
-        </p>
-        <CyberButton onClick={() => window.location.reload()}>RE-ESTABLISH CONNECTION</CyberButton>
-      </div>
-    );
-  }
 
   if (view === AppView.SPLASH) {
     return (
