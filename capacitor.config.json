@@ -1,0 +1,9 @@
+{
+  "appId": "io.vaultkey.app",
+  "appName": "VAULTKEY",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  }
+}
