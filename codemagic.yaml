@@ -1,73 +1,31 @@
-
 workflows:
   android-workflow:
-    name: Android Build Workflow
-    instance_type: mac_mini_m1
+    name: Android Build (Debug APK)
     max_build_duration: 60
+    instance_type: mac_mini_m2
+
     environment:
-      groups:
-        - google_play_credentials
-      node: 22.12.0
-      ruby: 3.2.2
-      xcode: latest
-      vars:
-        # Note: Set these in the Codemagic UI as secure variables
-        CM_KEYSTORE: "" # Base64 encoded keystore file
-        CM_KEYSTORE_PASSWORD: ""
-        CM_KEY_ALIAS: ""
-        CM_KEY_PASSWORD: ""
-    triggering:
-      events:
-        - push
-        - tag
-        - pull_request
-      branch_patterns:
-        - pattern: 'main'
-          include: true
-          source: true
+      node: 20
+      java: 17
+
     scripts:
       - name: Install dependencies
         script: |
           npm install
-      - name: Build web application
+
+      - name: Build web app
         script: |
           npm run build
-      - name: Initialize and Sync Capacitor
+
+      - name: Sync Capacitor
         script: |
-          if [ ! -f "android/gradlew" ]; then
-            echo "Android directory is missing gradlew. Re-adding platform..."
-            rm -rf android
-            npx cap add android
-          fi
-          npx cap sync
-      - name: Prepare Signing Keystore
-        script: |
-          if [ ! -z "$CM_KEYSTORE" ]; then
-            echo "Decoding signing keystore..."
-            echo $CM_KEYSTORE | base64 --decode > /tmp/vaultkey.keystore
-          else
-            echo "Warning: CM_KEYSTORE not found. Falling back to unsigned build."
-          fi
-      - name: Build Signed Android APK
+          npx cap sync android
+
+      - name: Build Android DEBUG APK
         script: |
           cd android
           chmod +x gradlew
-          if [ -f "/tmp/vaultkey.keystore" ]; then
-            ./gradlew assembleRelease \
-              -Pandroid.injected.signing.store.file=/tmp/vaultkey.keystore \
-              -Pandroid.injected.signing.store.password=$CM_KEYSTORE_PASSWORD \
-              -Pandroid.injected.signing.key.alias=$CM_KEY_ALIAS \
-              -Pandroid.injected.signing.key.password=$CM_KEY_PASSWORD
-          else
-            ./gradlew assembleRelease
-          fi
+          ./gradlew assembleDebug
+
     artifacts:
-      - android/app/build/outputs/apk/release/*.apk
-      - android/app/build/outputs/bundle/release/*.aab
-    publishing:
-      email:
-        recipients:
-          - mypcaccc01@gmail.com
-        notify:
-          success: true
-          failure: true
+      - android/app/build/outputs/apk/debug/app-debug.apk
