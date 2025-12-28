@@ -22,7 +22,7 @@ export class CryptoService {
     return window.crypto.subtle.deriveKey(
       {
         name: 'PBKDF2',
-        salt: salt,
+        salt: salt as any, // Cast to any to resolve BufferSource/ArrayBufferLike mismatch in TS 5+
         iterations: this.ITERATIONS,
         hash: 'SHA-256'
       },
