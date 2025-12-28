@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { AppView, VaultEntry, VaultSettings, EncryptedData } from './types';
 import { CryptoService } from './services/cryptoService';
 import { VaultService } from './services/vaultService';
@@ -12,13 +12,17 @@ const Navbar: React.FC<{
   onLogout: () => void;
   onNavigate: (view: AppView) => void;
   currentView: AppView;
-}> = ({ onLogout, onNavigate, currentView }) => (
+  isOnline: boolean;
+}> = ({ onLogout, onNavigate, currentView, isOnline }) => (
   <nav className="fixed top-0 left-0 right-0 h-16 border-b border-slate-800 bg-slate-950/80 backdrop-blur-md z-40 px-6 flex items-center justify-between">
     <div className="flex items-center gap-3">
       <div className="w-8 h-8 rounded bg-sky-600 flex items-center justify-center shadow-[0_0_10px_rgba(56,189,248,0.5)]">
         <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
       </div>
-      <h1 className="text-xl font-bold tracking-tighter text-white cyber-glow">VAULTKEY</h1>
+      <div className="flex flex-col">
+        <h1 className="text-xl font-bold tracking-tighter text-white cyber-glow leading-none">VAULTKEY</h1>
+        {!isOnline && <span className="text-[8px] text-amber-500 mono uppercase tracking-tighter">Offline Mode</span>}
+      </div>
     </div>
     <div className="flex items-center gap-2">
       <button 
@@ -66,6 +70,8 @@ export default function App() {
   const [showEntryModal, setShowEntryModal] = useState<{ isOpen: boolean, entry?: VaultEntry }>({ isOpen: false });
   const [lastActivity, setLastActivity] = useState(Date.now());
   const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' | 'info' } | null>(null);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [needsFirstRunInternet, setNeedsFirstRunInternet] = useState(false);
 
   // --- Helpers ---
 
@@ -94,6 +100,35 @@ export default function App() {
 
   // --- Effects ---
 
+  // Check for connectivity
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      // If we've just come online and were waiting for internet, clear the requirement
+      if (needsFirstRunInternet) {
+        localStorage.setItem('vaultkey_styles_ready', 'true');
+        setNeedsFirstRunInternet(false);
+      }
+    };
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    // Initial check for "Offline First Time"
+    const isStylesCached = localStorage.getItem('vaultkey_styles_ready') === 'true';
+    if (!navigator.onLine && !isStylesCached) {
+      setNeedsFirstRunInternet(true);
+    } else if (navigator.onLine) {
+      localStorage.setItem('vaultkey_styles_ready', 'true');
+    }
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [needsFirstRunInternet]);
+
   useEffect(() => {
     const timer = setTimeout(() => {
       if (VaultService.isInitialized()) {
@@ -121,9 +156,11 @@ export default function App() {
     const updateActivity = () => setLastActivity(Date.now());
     window.addEventListener('mousemove', updateActivity);
     window.addEventListener('keydown', updateActivity);
+    window.addEventListener('touchstart', updateActivity);
     return () => {
       window.removeEventListener('mousemove', updateActivity);
       window.removeEventListener('keydown', updateActivity);
+      window.removeEventListener('touchstart', updateActivity);
     };
   }, []);
 
@@ -137,7 +174,6 @@ export default function App() {
     try {
       const hash = await CryptoService.hashMasterPassword(pwd);
       VaultService.saveMasterHash(hash);
-      // Initialize empty vault so there's actually something to decrypt later
       const encrypted = await CryptoService.encrypt(JSON.stringify([]), pwd);
       VaultService.saveEncryptedVault(encrypted);
       
@@ -210,7 +246,6 @@ export default function App() {
   };
 
   const handleImport = async (data: EncryptedData) => {
-    // If already logged in, try to decrypt with current password
     if (masterPassword) {
       try {
         const decrypted = await CryptoService.decrypt(data, masterPassword);
@@ -219,12 +254,10 @@ export default function App() {
         VaultService.saveEncryptedVault(data);
         notify('Vault data imported and active');
       } catch (err) {
-        // Data belongs to a different password
         VaultService.saveEncryptedVault(data);
-        notify('Imported vault saved, but it uses a different password. Please re-lock and unlock with that password.', 'info');
+        notify('Imported vault saved, but it uses a different password.', 'info');
       }
     } else {
-      // Just save it, next unlock will use it
       VaultService.saveEncryptedVault(data);
       notify('Vault data imported. Unlock to access.', 'success');
     }
@@ -234,12 +267,29 @@ export default function App() {
     navigator.clipboard.writeText(text);
     notify('Copied to clipboard');
     setTimeout(() => {
-      navigator.clipboard.writeText('');
-      notify('Clipboard cleared', 'info');
+      try {
+        navigator.clipboard.writeText('');
+        notify('Clipboard cleared', 'info');
+      } catch(e) {}
     }, settings.clipboardClearDelay * 1000);
   };
 
   // --- Render Sections ---
+
+  if (needsFirstRunInternet) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center bg-[#0a0a0c]">
+        <div className="w-20 h-20 mb-8 bg-amber-500/20 rounded-full flex items-center justify-center text-amber-500 border border-amber-500/30 animate-pulse">
+           <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3m8.293 8.293l1.414 1.414"></path></svg>
+        </div>
+        <h2 className="text-2xl font-bold mb-4 cyber-glow">Initial Setup Required</h2>
+        <p className="text-slate-400 max-w-sm mb-8 leading-relaxed">
+          To finalize your offline vault setup, VAULTKEY needs to connect to the internet <span className="text-sky-400">one time</span> to cache essential security assets and styles.
+        </p>
+        <CyberButton onClick={() => window.location.reload()}>Check Connectivity</CyberButton>
+      </div>
+    );
+  }
 
   if (view === AppView.SPLASH) {
     return (
@@ -326,6 +376,7 @@ export default function App() {
         onLogout={handleLogout} 
         onNavigate={(v) => setView(v)} 
         currentView={view}
+        isOnline={isOnline}
       />
 
       {notification && (
@@ -376,7 +427,7 @@ export default function App() {
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg bg-slate-950 flex items-center justify-center text-sky-500 border border-slate-800">
-                      {entry.website ? (
+                      {entry.website && isOnline ? (
                         <img 
                           src={`https://www.google.com/s2/favicons?domain=${entry.website}&sz=64`} 
                           alt="favicon" 
@@ -551,7 +602,7 @@ const PasswordGenerator: React.FC<{ onGenerate: (p: string) => void }> = ({ onGe
       numbers: options.numbers ? '0123456789' : '',
       symbols: options.symbols ? '!@#$%^&*()_+-=[]{}|;:,.<>?' : '',
     };
-    const allChars = Object.values(charset).join('');
+    const allChars = Object.values(charset).join('') || 'abcdefghijklmnopqrstuvwxyz1234567890';
     let pwd = '';
     for (let i = 0; i < length; i++) {
       pwd += allChars.charAt(Math.floor(Math.random() * allChars.length));
